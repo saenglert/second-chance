@@ -1,64 +1,40 @@
-use std::{env, process::exit};
-use momox::get;
-
-use crate::values::ISBN;
+use axum::{
+    routing::get,
+    http::StatusCode,
+    Json, Router
+};
+use values::{ISBNResult, ISBN};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 pub mod values;
 pub mod momox;
 
-fn main() {
-    
-    let isbns = match validate_arguments() {
-        Ok(isbns) => isbns,
-        Err(err) => return handle_error(err),
+#[tokio::main]
+async fn main() {
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| format!("{}=debug", env!("CARGO_CRATE_NAME")).into()),
+        )
+        .with(tracing_subscriber::fmt::layer())
+        .init();
+
+    let app = Router::new()
+        .route("/", get(root));
+}
+
+async fn root() -> &'static str {
+    "Hello World"
+}
+
+async fn isbns(
+    Json(payload): Json<ISBN>,
+) -> (StatusCode, Json<ISBNResult>) {
+    let result = ISBNResult {
+        isbn: payload.value(),
+        name: "Test Book",
+        price: 1.23
     };
 
-
-    let mut prices_momox: Vec<f64> = Vec::new();
-    for isbn in isbns {
-        let price = match get(isbn) {
-            Ok(price) => price,
-            Err(err) => return handle_error(err),
-        };
-        prices_momox.push(price);
-    }
-
-    println!("{:#?}", prices_momox)
+    (StatusCode::OK, Json(result))
 }
-
-fn handle_error(err: String) {
-    println!("{}", format!("Error: {err}"));
-    exit(1)
-}
-
-fn validate_arguments() -> Result<Vec<ISBN>, String> {
-    let args: Vec<String> = env::args().collect();
-
-    let mut counter = 0;
-    let mut isbns: Vec<ISBN> = Vec::new();
-    for arg in args {
-        if counter == 0 {
-            println!("Skiping first argument");
-            counter += 1;
-            continue;
-        }
-
-        println!("Handling argument #{:?}", counter);
-
-        let number = match arg.parse::<u64>() {
-            Ok(value) => value,
-            Err(_) => return Err("Unable to parse value to u64".to_string()),
-        };
-
-        let isbn = match ISBN::new(number) {
-            Ok(isbn) => isbn,
-            Err(err) => return Err(format!("[#{counter}] {err}")),
-        };
-
-        isbns.push(isbn);
-        counter += 1;
-    };
-
-    Ok(isbns)
-}
-

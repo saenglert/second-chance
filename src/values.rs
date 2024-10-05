@@ -1,4 +1,6 @@
-#[derive(Debug)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ISBN {
     value: u64
 }
@@ -25,4 +27,11 @@ impl ISBN {
     pub fn value(&self) -> u64 {
         self.value
     }
+}
+
+#[derive(Serialize, Debug)]
+pub struct ISBNResult {
+    isbn: u64,
+    name: &'static str,
+    price: f64
 }
